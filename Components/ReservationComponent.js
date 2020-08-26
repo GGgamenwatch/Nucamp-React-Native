@@ -1,6 +1,11 @@
 import React, { Component } from 'react';
-import { Text, View, ScrollView, StyleSheet, Picker, Switch, Button, Modal } from 'react-native';
+import { Text, View, ScrollView, StyleSheet, Picker, Switch, Button, Modal, PanResponder, Alert } from 'react-native';
 import DatePicker from 'react-native-datepicker';
+import { Notifications } from 'expo';
+import * as Permissions from 'expo-permissions';
+import * as Animatable from 'react-native-animatable';
+
+
 
 class Reservation extends Component {
 
@@ -25,7 +30,29 @@ class Reservation extends Component {
 
     handleReservation() {
         console.log(JSON.stringify(this.state));
-        this.toggleModal();
+        Alert.alert(
+           "Begin Search?",
+           `\n\ No. of Campers: ${this.state.campers}
+           \n\ Hike-In?:${this.state.hikeIn}
+           \n\ Date: ${this.state.date}`,
+           [
+               {
+                   text: "Cancel",
+                   onPress: () => {
+                       console.log("Cancel Pressed")
+                       this.resetForm()},
+                   style: "Cancel"
+               },
+               { text: "OK", onPress: () => {
+                   console.log("OK Pressed")
+                   this.presentLocalNotification(this.state.date);
+                   this.resetForm();
+                } 
+            
+                }
+           ],
+           { cancelable: false } 
+        );
     }    
 
 
@@ -38,9 +65,34 @@ class Reservation extends Component {
         });
     }
 
+    async obtainNotificationPermission() {
+        const permission = await Permissions.getAsync(Permissions.USER_FACING_NOTIFICATIONS);
+        if (permission.status !== 'granted') {
+            const permission = await Permissions.askAsync(Permissions.USER_FACING_NOTIFICATIONS);
+            if (permission.status !== 'granted') {
+                Alert.alert('Permission not granted to show notifications');
+            }
+            return permission;
+        }
+        return permission;
+    }
+
+    async presentLocalNotification(date) {
+        const permission = await this.obtainNotificationPermission();
+        if (permission.status === 'granted') {
+            Notifications.presentLocalNotificationAsync({
+                title: 'Your Campsite Reservation Search',
+                body: 'Search for ' + date + ' requested'
+            });
+        }
+    }
+
     render() {
         return (
-            <ScrollView>
+            <Animatable.View
+                animation ='zoomIn' 
+                duration={2000} 
+                delay={1000}>
                 <View style={styles.formRow}>
                     <Text style={styles.formLabel}>Number of Campers</Text>
                     <Picker
@@ -97,27 +149,8 @@ class Reservation extends Component {
                         accessibilityLabel='Tap me to search for available campsites to reserve'
                     />
                 </View>
-                <Modal
-                    animationType={'slide'}
-                    transparent={false}
-                    visible={this.state.showModal}
-                    onRequestClose={() => this.toggleModal()}>
-                    <View style={styles.modal}>
-                        <Text style={styles.modalTitle}>Search Campsite Reservations</Text>
-                        <Text style={styles.modalText}>Number of Campers:</Text>
-                        <Text style={styles.modalText}>Hike In?: {this.state.hikeIn ? 'Yes' : 'No'}</Text>
-                        <Text style={styles.modalText}>Date: {this.state.date}</Text>
-                        <Button
-                            onPress={() => {
-                                this.toggleModal();
-                                this.resetForm();
-                            }}
-                            color='#5637DD'
-                            title='Close'
-                        />    
-                    </View>    
-                </Modal>
-            </ScrollView>
+                
+            </Animatable.View>
         );
     }
 }
@@ -137,11 +170,11 @@ const styles = StyleSheet.create({
     formItem: {
         flex: 1
     },
-    modal: {
+    alert: {
         justifyContent: 'center',
         margin: 20
     },
-    modalTitle: {
+    alertTitle: {
         fontSize: 24,
         fontWeight: 'bold',
         backgroundColor: '#5637DD',
@@ -149,7 +182,7 @@ const styles = StyleSheet.create({
         color: '#fff',
         marginBottom: 20
     },
-    modalText: {
+    alertText: {
         fontSize: 18,
         margin: 10
     }
